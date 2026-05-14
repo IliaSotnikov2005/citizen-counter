@@ -40,8 +40,8 @@ func Print(counts map[string]int, topN int, sortByFreq bool) {
 		fmt.Println("\n=== All Names")
 	}
 
-	for i, p := range pairs {
-		fmt.Printf("%d. %-20s %d\n", i+1, p.name, p.count)
+	for _, p := range pairs {
+		fmt.Printf("%-12s %d\n", p.name+":", p.count)
 	}
 
 	fmt.Printf("\nTotal: %d unique names\n", len(counts))
