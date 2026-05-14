@@ -1,6 +1,7 @@
 package counter
 
 import (
+	"fmt"
 	"os"
 	"testing"
 )
@@ -49,7 +50,7 @@ func runCounterTest(t *testing.T, c Counter, tt struct {
 	}
 	defer func() {
 		if err := os.Remove(tmpFile.Name()); err != nil {
-			_ = err
+			fmt.Fprintf(os.Stderr, "error removing file: %v\n", err)
 		}
 	}()
 
@@ -57,7 +58,7 @@ func runCounterTest(t *testing.T, c Counter, tt struct {
 		t.Fatal(err)
 	}
 	if err := tmpFile.Close(); err != nil {
-		_ = err
+		fmt.Fprintf(os.Stderr, "error closing file: %v\n", err)
 	}
 
 	result, err := c.Count(tmpFile.Name())

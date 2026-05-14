@@ -36,23 +36,23 @@ func NewParallelCounter(workers, bufferMB int) *ParallelCounter {
 func splitFile(filePath string, numParts int) ([]filePart, error) {
 	info, err := os.Stat(filePath)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get file info: %w", err)
 	}
 
 	fileSize := info.Size()
 	if fileSize == 0 {
-		return nil, nil
+		return []filePart{}, nil
 	}
 
 	partSize := max(fileSize/int64(numParts), 1024)
 
 	file, err := os.Open(filePath)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to open file: %w", err)
 	}
 	defer func() {
 		if err := file.Close(); err != nil {
-			_ = err
+			fmt.Fprintf(os.Stderr, "error closing file: %v\n", err)
 		}
 	}()
 
@@ -66,7 +66,7 @@ func splitFile(filePath string, numParts int) ([]filePart, error) {
 		} else {
 			newEnd, err := findLineEnd(file, end, fileSize)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("failed to find line end: %w", err)
 			}
 
 			end = newEnd
@@ -89,7 +89,7 @@ func findLineEnd(file *os.File, pos, fileSize int64) (int64, error) {
 
 	_, err := file.Seek(pos, 0)
 	if err != nil {
-		return pos, err
+		return pos, fmt.Errorf("failed to seek in file: %w", err)
 	}
 
 	buf := make([]byte, 4096)
@@ -98,7 +98,7 @@ func findLineEnd(file *os.File, pos, fileSize int64) (int64, error) {
 	for {
 		n, err := file.Read(buf)
 		if err != nil && err != io.EOF {
-			return currentPos, err
+			return currentPos, fmt.Errorf("failed to read from file: %w", err)
 		}
 		if n == 0 {
 			break
@@ -168,18 +168,17 @@ func (c *ParallelCounter) Count(filePath string) (*Result, error) {
 func processPart(filePath string, part filePart, bufferMB int) (map[string]int, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to open file: %w", err)
 	}
 	defer func() {
 		if err := file.Close(); err != nil {
-			// логируем ошибку закрытия
-			_ = err
+			fmt.Fprintf(os.Stderr, "error closing file: %v\n", err)
 		}
 	}()
 
 	_, err = file.Seek(part.offset, 0)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to seek in file: %w", err)
 	}
 
 	limitedReader := io.LimitReader(file, part.size)
@@ -199,7 +198,7 @@ func processPart(filePath string, part filePart, bufferMB int) (map[string]int, 
 			if err == io.EOF {
 				break
 			}
-			return nil, err
+			return nil, fmt.Errorf("failed to read line: %w", err)
 		}
 	}
 

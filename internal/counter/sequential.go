@@ -25,8 +25,7 @@ func (c *SequentialCounter) Count(filePath string) (*Result, error) {
 	}
 	defer func() {
 		if err := file.Close(); err != nil {
-			// логируем ошибку закрытия
-			_ = err
+			fmt.Fprintf(os.Stderr, "error closing file: %v\n", err)
 		}
 	}()
 
