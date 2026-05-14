@@ -50,7 +50,11 @@ func splitFile(filePath string, numParts int) ([]filePart, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			_ = err
+		}
+	}()
 
 	parts := make([]filePart, 0, numParts)
 	start := int64(0)
@@ -166,7 +170,12 @@ func processPart(filePath string, part filePart, bufferMB int) (map[string]int, 
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			// логируем ошибку закрытия
+			_ = err
+		}
+	}()
 
 	_, err = file.Seek(part.offset, 0)
 	if err != nil {

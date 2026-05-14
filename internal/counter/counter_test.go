@@ -47,12 +47,18 @@ func runCounterTest(t *testing.T, c Counter, tt struct {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.Remove(tmpFile.Name())
+	defer func() {
+		if err := os.Remove(tmpFile.Name()); err != nil {
+			_ = err
+		}
+	}()
 
 	if _, err := tmpFile.WriteString(tt.content); err != nil {
 		t.Fatal(err)
 	}
-	tmpFile.Close()
+	if err := tmpFile.Close(); err != nil {
+		_ = err
+	}
 
 	result, err := c.Count(tmpFile.Name())
 	if (err != nil) != tt.wantErr {

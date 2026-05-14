@@ -23,7 +23,12 @@ func (c *SequentialCounter) Count(filePath string) (*Result, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			// логируем ошибку закрытия
+			_ = err
+		}
+	}()
 
 	info, err := file.Stat()
 	if err != nil {
