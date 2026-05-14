@@ -1,12 +1,19 @@
 package main
 
 import (
+	_ "net/http/pprof"
+
 	"flag"
 	"fmt"
 	"os"
 
 	"github.com/IliaSotnikov2005/citizen-counter/internal/counter"
 	"github.com/IliaSotnikov2005/citizen-counter/internal/output"
+)
+
+var (
+	mode    = flag.String("mode", "sequential", "processing mode: sequential or parallel")
+	workers = flag.Int("workers", 0, "number of workers for parallel mode (0 = CPU cores)")
 )
 
 func main() {
@@ -22,7 +29,22 @@ func main() {
 	}
 	filePath := flag.Arg(0)
 
-	result, err := counter.Count(filePath, *bufSize)
+	var result *counter.Result
+	var err error
+
+	if *mode == "parallel" {
+		fmt.Fprintf(os.Stderr, "Running in PARALLEL mode with %d workers\n", *workers)
+		config := counter.ParallelConfig{
+			Workers: *workers,
+			BufSize: *bufSize,
+		}
+
+		result, err = counter.CountParallel(filePath, config)
+	} else {
+		fmt.Fprintf(os.Stderr, "Running in SEQUENTIAL mode\n")
+		result, err = counter.Count(filePath, *bufSize)
+	}
+
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
