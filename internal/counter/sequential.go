@@ -8,16 +8,17 @@ import (
 	"strings"
 )
 
-const (
-	minExpectedUniques = 100
-	maxExpectedUniques = 20_000
-)
-
-type Result struct {
-	Counts map[string]int
+type SequentialCounter struct {
+	BufferSizeMB int
 }
 
-func Count(filePath string, bufferMB int) (*Result, error) {
+func NewSequentialCounter(bufferMB int) *SequentialCounter {
+	return &SequentialCounter{
+		BufferSizeMB: bufferMB,
+	}
+}
+
+func (c *SequentialCounter) Count(filePath string) (*Result, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file: %w", err)
@@ -32,7 +33,7 @@ func Count(filePath string, bufferMB int) (*Result, error) {
 
 	counts := make(map[string]int, estimatedCap)
 
-	bufSize := max(bufferMB*1024*1024, 64*1024)
+	bufSize := max(c.BufferSizeMB*1024*1024, 64*1024)
 	reader := bufio.NewReaderSize(file, bufSize)
 
 	var totalLines int64
@@ -57,18 +58,4 @@ func Count(filePath string, bufferMB int) (*Result, error) {
 	return &Result{
 		Counts: counts,
 	}, nil
-}
-
-func estimateCapacity(fileSize int64) int {
-	estimatedLines := fileSize / 15
-	estimatedUnique := int(float64(estimatedLines) * 0.3)
-
-	switch {
-	case estimatedUnique < minExpectedUniques:
-		return minExpectedUniques
-	case estimatedUnique > maxExpectedUniques:
-		return maxExpectedUniques
-	default:
-		return estimatedUnique
-	}
 }

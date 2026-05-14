@@ -10,9 +10,9 @@ import (
 	"sync"
 )
 
-type ParallelConfig struct {
-	Workers int
-	BufSize int
+type ParallelCounter struct {
+	Workers      int
+	BufferSizeMB int
 }
 
 type filePart struct {
@@ -24,6 +24,13 @@ type partResult struct {
 	index  int
 	counts map[string]int
 	err    error
+}
+
+func NewParallelCounter(workers, bufferMB int) *ParallelCounter {
+	return &ParallelCounter{
+		Workers:      workers,
+		BufferSizeMB: bufferMB,
+	}
 }
 
 func splitFile(filePath string, numParts int) ([]filePart, error) {
@@ -107,14 +114,17 @@ func findLineEnd(file *os.File, pos, fileSize int64) (int64, error) {
 	return fileSize, nil
 }
 
-func CountParallel(filePath string, config ParallelConfig) (*Result, error) {
-	if config.Workers <= 0 {
-		config.Workers = runtime.NumCPU()
+func (c *ParallelCounter) Count(filePath string) (*Result, error) {
+	if c.Workers <= 0 {
+		c.Workers = runtime.NumCPU()
 	}
 
-	parts, err := splitFile(filePath, config.Workers)
+	parts, err := splitFile(filePath, c.Workers)
 	if err != nil {
 		return nil, fmt.Errorf("failed to split file: %w", err)
+	}
+	if len(parts) == 0 {
+		return &Result{Counts: make(map[string]int)}, nil
 	}
 
 	resultsCh := make(chan *partResult, len(parts))
@@ -124,7 +134,7 @@ func CountParallel(filePath string, config ParallelConfig) (*Result, error) {
 		wg.Add(1)
 		go func(partIndex int, p filePart) {
 			defer wg.Done()
-			counts, err := processPart(filePath, p, config.BufSize)
+			counts, err := processPart(filePath, p, c.BufferSizeMB)
 			resultsCh <- &partResult{
 				index:  partIndex,
 				counts: counts,
@@ -138,7 +148,7 @@ func CountParallel(filePath string, config ParallelConfig) (*Result, error) {
 		close(resultsCh)
 	}()
 
-	finalCounts := make(map[string]int, 20000)
+	finalCounts := make(map[string]int, estimateCapacity(parts[0].size*int64(len(parts))))
 	for result := range resultsCh {
 		if result.err != nil {
 			return nil, fmt.Errorf("part %d failed: %w", result.index, result.err)
